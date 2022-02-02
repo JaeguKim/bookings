@@ -5,12 +5,15 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
 
 	"github.com/tsawler/bookings-app/internal/config"
+	"github.com/tsawler/bookings-app/internal/driver"
 	"github.com/tsawler/bookings-app/internal/handlers"
+	"github.com/tsawler/bookings-app/internal/helpers"
 	"github.com/tsawler/bookings-app/internal/models"
 	"github.com/tsawler/bookings-app/internal/render"
 )
@@ -19,13 +22,17 @@ const portNumber = ":8080"
 
 var app config.AppConfig
 var session *scs.SessionManager
+var infoLog *log.Logger
+var errorLog *log.Logger
 
 // main is the main function
 func main() {
-	err := run()
+	db, err := run()
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer db.SQL.Close() // db connection is closed after main function is done
+
 	fmt.Println(fmt.Sprintf("Staring application on port %s", portNumber))
 
 	srv := &http.Server{
@@ -39,12 +46,21 @@ func main() {
 	}
 }
 
-func run() error {
+func run() (*driver.DB, error) {
 	// what am I going to put int the session
 	gob.Register(models.Reservation{})
+	gob.Register(models.User{})
+	gob.Register(models.Room{})
+	gob.Register(models.Restriction{})
 
 	// change this to true when in production
 	app.InProduction = false
+
+	infoLog = log.New(os.Stdout, "INFO\t", log.Ldate | log.Ltime)
+	app.InfoLog = infoLog
+
+	errorLog = log.New(os.Stdout, "ERROR\t", log.Ldate | log.Ltime | log.Lshortfile)
+	app.ErrorLog = errorLog
 
 	// set up the session
 	session = scs.New()
@@ -55,18 +71,25 @@ func run() error {
 
 	app.Session = session
 
+	// connect to database
+	log.Println("Connecting to database")
+	db, err := driver.ConnectSQL("host=localhost port=5432 dbname=bookings user=postgres password=")
+	if err != nil {
+		log.Fatal("Cannot connect to database! Dying...")
+	}
+
 	tc, err := render.CreateTemplateCache()
 	if err != nil {
 		log.Fatal("cannot create template cache")
-		return err
+		return nil,err
 	}
 
 	app.TemplateCache = tc
 	app.UseCache = false
 
-	repo := handlers.NewRepo(&app)
+	repo := handlers.NewRepo(&app, db)
 	handlers.NewHandlers(repo)
-
-	render.NewTemplates(&app)
-	return nil
+	render.NewRenderer(&app)
+	helpers.NewHelpers(&app)
+	return db, nil
 }
