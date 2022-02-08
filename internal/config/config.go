@@ -5,6 +5,8 @@ import (
 	"log"
 
 	"github.com/alexedwards/scs/v2"
+
+	"github.com/tsawler/bookings-app/internal/models"
 )
 
 // AppConfig holds the application config
@@ -15,4 +17,5 @@ type AppConfig struct {
 	ErrorLog      *log.Logger
 	InProduction  bool
 	Session       *scs.SessionManager
+	MailChan      chan models.MailData
 }

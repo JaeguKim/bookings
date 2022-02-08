@@ -9,7 +9,7 @@ type User struct {
 	FirstName   string
 	LastName    string
 	Email       string
-	password    string
+	Password    string
 	AccessLevel int
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
@@ -40,6 +40,7 @@ type Reservation struct {
 	RoomID    int
 	CreatedAt time.Time
 	UpdatedAt time.Time
+	Processed int
 	Room      Room
 }
 
@@ -55,4 +56,13 @@ type RoomRestriction struct {
 	Room          Room
 	Reservation   Reservation
 	Restriction   Restriction
+}
+
+// MailData holds an email message
+type MailData struct {
+	To string
+	From string
+	Subject string
+	Content string
+	Template string
 }
